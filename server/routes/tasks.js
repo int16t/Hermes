@@ -2,6 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const Task    = require('../models/Task');
 const auth    = require('../middleware/auth');
+const agentAuth = require('../middleware/agentAuth');
 
 // POST /api/tasks — operador cria tarefa via dashboard (protegido)
 router.post('/', auth, async (req, res) => {
@@ -16,10 +17,10 @@ router.post('/', auth, async (req, res) => {
 });
 
 // GET /api/tasks/agent/:agentId — agente C# busca tarefas pendentes (sem auth)
-router.get('/agent/:agentId', async (req, res) => {
+router.get('/agent/:agentId', agentAuth, async (req, res) => {
   try {
     const tasks = await Task.find({
-      agentId: req.params.agentId,
+      agentId: req.agent._id,
       status:  'pending'
     });
 
@@ -35,7 +36,7 @@ router.get('/agent/:agentId', async (req, res) => {
 });
 
 // PUT /api/tasks/:id/result — agente C# devolve resultado (sem auth)
-router.put('/:id/result', async (req, res) => {
+router.put('/:id/result', agentAuth, async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Tarefa não encontrada' });

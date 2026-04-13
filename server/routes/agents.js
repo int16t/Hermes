@@ -3,21 +3,27 @@ const router  = express.Router();
 const Agent   = require('../models/Agent');
 const auth    = require('../middleware/auth');
 
-// POST /api/agents/register — agent C# faz check-in (sem auth)
+// POST /api/agents/register — agent C# faz check-in
 router.post('/register', async (req, res) => {
   try {
-    const { hostname, username, os, ip, arch, pid } = req.body;
+    let { hostname, username, os, ip, arch, pid, token } = req.body;
 
-    let agent = await Agent.findOne({ hostname, ip });
+    let agent = token 
+    ? await Agent.findOne({ token }) 
+    : await Agent.findOne({ hostname, ip });
 
     if (agent) {
       agent.lastSeen = new Date();
       agent.status   = 'active';
+      if (!agent.token) {
+        agent.token = require('crypto').randomUUID();
+      }
       await agent.save();
       return res.json({ message: 'Check-in atualizado', agent });
     }
-
-    agent = new Agent({ hostname, username, os, ip, arch, pid });
+    
+    token = require('crypto').randomUUID();
+    agent = new Agent({ hostname, username, os, ip, arch, pid, token });
     await agent.save();
     res.status(201).json({ message: 'Agente registrado', agent });
   } catch (err) {
