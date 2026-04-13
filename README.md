@@ -86,7 +86,12 @@ cd agent-csharp
 dotnet run
 ```
 
-**Dashboard:** <http://localhost:3000>
+## **Dashboard:**
+
+<http://localhost:3000>
+
+<img width="937" height="602" alt="Screenshot from 2026-04-13 16-51-34" src="https://github.com/user-attachments/assets/4fb9dc31-5b8d-470a-b4ce-ff2abee38ff4" />
+
 
 ## Compilar o agente para outra maquina
 
