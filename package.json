@@ -1,0 +1,24 @@
+{
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "mongodb": "^7.1.1",
+    "mongoose": "^9.4.1"
+  },
+  "name": "hermes-bird",
+  "version": "1.0.0",
+  "description": "Um **Command & Control (C2) Dashboard simplificado** para fins educacionais. O objetivo é entender como adversários gerenciam acessos comprometidos em uma operação ofensiva — conhecimento essencial tanto para Red Team quanto Blue Team.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon server/index.js",
+    "start": "node server/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
