@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>C2 Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <h1>☠ C2 DASHBOARD</h1>
+    <p class="subtitle">EDUCATIONAL USE ONLY</p>
+    <div id="stats">
+      <span id="stat-active">● Active: 0</span>
+      <span id="stat-dormant">◐ Dormant: 0</span>
+      <span id="stat-dead">○ Dead: 0</span>
+    </div>
+  </header>
+
+  <main>
+    <section id="agents-panel">
+      <h2>> AGENTS</h2>
+      <div id="agents-list"></div>
+    </section>
+
+    <section id="interaction-panel" style="display:none;">
+      <h2>> INTERACT: <span id="target-name"></span></h2>
+
+      <div id="command-bar">
+        <span class="prompt">$</span>
+        <input type="text" id="command-input" placeholder="whoami / ipconfig / dir C:\">
+        <button id="send-btn">SEND</button>
+      </div>
+
+      <div id="task-history"></div>
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

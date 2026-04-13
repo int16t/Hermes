@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0a0a0a;
+  color: #00ff41;
+  font-family: 'Fira Code', monospace;
+  font-size: 14px;
+  padding: 20px;
+}
+
+header {
+  border-bottom: 1px solid #1a3a1a;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+
+header h1 { font-size: 22px; letter-spacing: 3px; }
+.subtitle  { color: #ff4444; font-size: 11px; margin-top: 4px; }
+
+#stats { margin-top: 10px; display: flex; gap: 20px; font-size: 13px; }
+#stat-active  { color: #00ff41; }
+#stat-dormant { color: #ffaa00; }
+#stat-dead    { color: #666; }
+
+h2 { font-size: 16px; margin-bottom: 15px; color: #00cc33; }
+
+#agents-list { display: flex; flex-direction: column; gap: 8px; }
+
+.agent-card {
+  background: #111;
+  border: 1px solid #1a3a1a;
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: border-color 0.2s;
+}
+.agent-card:hover    { border-color: #00ff41; }
+.agent-card.selected { border-color: #00ff41; background: #0a1a0a; }
+
+.agent-name { font-weight: 700; }
+.agent-meta { color: #888; font-size: 12px; }
+
+.status-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.status-active  { background: #00ff41; }
+.status-dormant { background: #ffaa00; }
+.status-dead    { background: #444; }
+
+#command-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: #111; border: 1px solid #1a3a1a;
+  padding: 10px; margin-bottom: 15px;
+}
+
+.prompt { color: #00ff41; font-weight: 700; }
+
+#command-input {
+  flex: 1; background: transparent; border: none;
+  color: #00ff41; font-family: 'Fira Code', monospace;
+  font-size: 14px; outline: none;
+}
+
+#send-btn {
+  background: #00ff41; color: #000; border: none;
+  padding: 6px 16px; font-family: 'Fira Code', monospace;
+  font-weight: 700; cursor: pointer;
+}
+#send-btn:hover { background: #00cc33; }
+
+#task-history { max-height: 400px; overflow-y: auto; }
+
+.task-entry {
+  background: #0d0d0d;
+  border-left: 3px solid #1a3a1a;
+  padding: 10px 14px; margin-bottom: 8px;
+}
+.task-entry.completed { border-left-color: #00ff41; }
+.task-entry.pending   { border-left-color: #ffaa00; }
+.task-entry.sent      { border-left-color: #4488ff; }
+.task-entry.failed    { border-left-color: #ff4444; }
+
+.task-cmd    { color: #00cc33; font-weight: 700; }
+.task-output { color: #aaa; margin-top: 6px; white-space: pre-wrap; font-size: 12px; }
+.task-time   { color: #555; font-size: 11px; margin-top: 4px; }
+
+main { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+@media (max-width: 768px) { main { grid-template-columns: 1fr; } }
