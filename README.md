@@ -1,4 +1,4 @@
-# Hermes Bird — C2 Dashboard Educacional
+# Hermes — C2 Dashboard Educacional
 
 ## O que e um C2?
 
