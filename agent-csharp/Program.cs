@@ -18,8 +18,6 @@ class Agent
     static string agentId    = "";
     static string agentToken = "";
 
-    // O agente mantém o diretório atual internamente,
-    // assim como Cobalt Strike e Havoc fazem.
     // Começa no diretório onde o agente foi executado.
     static string currentDir = Directory.GetCurrentDirectory();
 
@@ -74,16 +72,12 @@ class Agent
         }
     }
 
-    // HandleCommand decide se o comando é tratado internamente ou executado no shell.
     // Comandos internos (cd, pwd) são resolvidos pelo próprio agente sem criar
     // nenhum processo, reduzindo ruído no sistema.
     static string HandleCommand(string command, string stdin = "")
     {
         string trimmed = command.Trim();
 
-        // CD: comando interno, muda o diretório do agente
-        // Não cria processo nenhum, apenas atualiza a variável currentDir.
-        // É assim que frameworks reais fazem: o estado vive no agente.
         if (trimmed == "cd" || trimmed.StartsWith("cd "))
         {
             return BuiltinCd(trimmed);
@@ -99,12 +93,6 @@ class Agent
         return ExecuteCommand(trimmed, stdin);
     }
 
-    // Implementação do cd interno.
-    // Resolve o caminho usando Path.GetFullPath, que trata:
-    //   - caminhos absolutos (/tmp, C:\Users)
-    //   - caminhos relativos (../foo, subdir)
-    //   - "~" como atalho para home
-    //   - "cd" sem argumento volta pro home
     static string BuiltinCd(string command)
     {
         // Extrai o destino: "cd /tmp" → "/tmp", "cd" → home
