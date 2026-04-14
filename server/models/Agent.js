@@ -8,6 +8,7 @@ const agentSchema = new mongoose.Schema({
   arch:         { type: String, default: 'x64' },
   pid:          { type: Number },
   token:        { type: String, unique: true },
+  cwd:          { type: String, default: '' },
   status: {
     type:    String,
     enum:    ['active', 'dormant', 'dead'],

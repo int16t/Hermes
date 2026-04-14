@@ -3,28 +3,32 @@ const router  = express.Router();
 const Agent   = require('../models/Agent');
 const auth    = require('../middleware/auth');
 
+module.exports = function(io) {
+
 // POST /api/agents/register — agent C# faz check-in
 router.post('/register', async (req, res) => {
   try {
-    let { hostname, username, os, ip, arch, pid, token } = req.body;
+    let { hostname, username, os, ip, arch, pid, token, cwd } = req.body;
 
-    let agent = token 
-    ? await Agent.findOne({ token }) 
+    let agent = token
+    ? await Agent.findOne({ token })
     : await Agent.findOne({ hostname, ip });
 
     if (agent) {
       agent.lastSeen = new Date();
       agent.status   = 'active';
+      if (cwd) agent.cwd = cwd;
       if (!agent.token) {
         agent.token = require('crypto').randomUUID();
       }
       await agent.save();
       return res.json({ message: 'Check-in atualizado', agent });
     }
-    
+
     token = require('crypto').randomUUID();
-    agent = new Agent({ hostname, username, os, ip, arch, pid, token });
+    agent = new Agent({ hostname, username, os, ip, arch, pid, token, cwd });
     await agent.save();
+    io.emit('agent-checkin', agent);
     res.status(201).json({ message: 'Agente registrado', agent });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -62,4 +66,5 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+return router;
+};

@@ -4,7 +4,8 @@
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
     "mongodb": "^7.1.1",
-    "mongoose": "^9.4.1"
+    "mongoose": "^9.4.1",
+    "socket.io": "^4.8.3"
   },
   "name": "hermes-bird",
   "version": "1.0.0",

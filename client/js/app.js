@@ -60,6 +60,15 @@ async function loadAgents() {
     document.getElementById('stat-active').textContent  = `● Active: ${active}`;
     document.getElementById('stat-dormant').textContent = `◐ Dormant: ${dormant}`;
     document.getElementById('stat-dead').textContent    = `○ Dead: ${dead}`;
+
+    // Atualiza o cwd no prompt se o agente selecionado fez check-in
+    if (selectedAgent) {
+      const updated = agents.find(a => a._id === selectedAgent._id);
+      if (updated) {
+        selectedAgent = updated;
+        updatePrompt();
+      }
+    }
   } catch (err) {
     console.error('Erro ao carregar agentes:', err);
   }
@@ -70,8 +79,18 @@ function selectAgent(agent) {
   selectedAgent = agent;
   document.getElementById('interaction-panel').style.display = 'block';
   document.getElementById('target-name').textContent = agent.hostname;
+  updatePrompt();
   loadTasks(agent._id);
   loadAgents();
+}
+
+// Mostra o cwd que o agente reportou no último check-in.
+// Diferente de antes: agora é um dado real vindo do agente,
+// não uma estimativa do servidor.
+function updatePrompt() {
+  const promptEl = document.querySelector('#command-bar .prompt');
+  const cwd = selectedAgent?.cwd || '~';
+  promptEl.textContent = `${cwd} $`;
 }
 
 async function loadTasks(agentId) {
@@ -102,10 +121,18 @@ async function sendCommand() {
   if (!command || !selectedAgent) return;
 
   try {
+    // Se o comando usa sudo, pede a senha e envia via stdin
+    let stdin = '';
+    if (/^sudo\s/.test(command)) {
+      const password = prompt('Senha sudo do alvo:');
+      if (password === null) return;
+      stdin = password;
+    }
+
     await fetch(`${API_URL}/tasks`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ agentId: selectedAgent._id, command })
+      body: JSON.stringify({ agentId: selectedAgent._id, command, stdin })
     });
     input.value = '';
     loadTasks(selectedAgent._id);
@@ -132,7 +159,17 @@ document.getElementById('command-input').addEventListener('keydown', e => {
 });
 
 loadAgents();
+
+// WebSocket: atualiza o dashboard em tempo real
+const socket = io();
+
+socket.on('agent-checkin', (agent) => {
+  console.log('[WS] Novo check-in:', agent.hostname);
+  loadAgents();
+});
+
+// Polling como fallback (intervalo maior já que o socket cuida do tempo real)
 setInterval(() => {
   loadAgents();
   if (selectedAgent) loadTasks(selectedAgent._id);
-}, 5000);
+}, 15000);

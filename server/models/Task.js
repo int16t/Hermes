@@ -7,6 +7,7 @@ const taskSchema = new mongoose.Schema({
     required: true
   },
   command:     { type: String, required: true },
+  stdin:       { type: String, default: '' },
   status: {
     type:    String,
     enum:    ['pending', 'sent', 'completed', 'failed'],
