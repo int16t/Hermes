@@ -8,8 +8,8 @@ const agentAuth = require('../middleware/agentAuth');
 // O servidor só transporta o comando. Quem gerencia cwd é o agente.
 router.post('/', auth, async (req, res) => {
   try {
-    const { agentId, command, stdin } = req.body;
-    const task = new Task({ agentId, command, stdin });
+    const { agentId, command, stdin, shell } = req.body;
+    const task = new Task({ agentId, command, stdin, shell });
     await task.save();
     res.status(201).json(task);
   } catch (err) {

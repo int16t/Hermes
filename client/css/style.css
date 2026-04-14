@@ -60,6 +60,13 @@ h2 { font-size: 16px; margin-bottom: 15px; color: #00cc33; }
   padding: 10px; margin-bottom: 15px;
 }
 
+#shell-select {
+  background: #0a0a0a; color: #00ff41; border: 1px solid #1a3a1a;
+  font-family: 'Fira Code', monospace; font-size: 12px;
+  padding: 4px 6px; cursor: pointer; outline: none;
+}
+#shell-select:hover { border-color: #00ff41; }
+
 .prompt { color: #00ff41; font-weight: 700; }
 
 #command-input {

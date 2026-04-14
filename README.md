@@ -162,7 +162,7 @@ Endpoints protegidos exigem o header `x-api-key`.
 ## Roadmap
 
 - [x] WebSockets (Socket.io) para atualizar o dashboard em tempo real
-- [ ] Suporte a PowerShell alem de cmd.exe
+- [x] Suporte a PowerShell alem de cmd.exe
 - [ ] Upload/download de arquivos
 - [ ] Persistencia via Task Scheduler / Registry / Startup Folder
 - [ ] HTTPS com certificado self-signed

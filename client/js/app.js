@@ -104,7 +104,7 @@ async function loadTasks(agentId) {
       const entry = document.createElement('div');
       entry.className = `task-entry ${task.status}`;
       entry.innerHTML = `
-        <div class="task-cmd">$ ${task.command}</div>
+        <div class="task-cmd">[${task.shell || 'auto'}] $ ${task.command}</div>
         ${task.output ? `<div class="task-output">${task.output}</div>` : ''}
         <div class="task-time">${task.status.toUpperCase()} — ${new Date(task.createdAt).toLocaleString()}</div>
       `;
@@ -129,10 +129,12 @@ async function sendCommand() {
       stdin = password;
     }
 
+    const shell = document.getElementById('shell-select').value;
+
     await fetch(`${API_URL}/tasks`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ agentId: selectedAgent._id, command, stdin })
+      body: JSON.stringify({ agentId: selectedAgent._id, command, stdin, shell })
     });
     input.value = '';
     loadTasks(selectedAgent._id);

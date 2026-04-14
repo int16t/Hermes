@@ -8,6 +8,11 @@ const taskSchema = new mongoose.Schema({
   },
   command:     { type: String, required: true },
   stdin:       { type: String, default: '' },
+  shell: {
+    type:    String,
+    enum:    ['auto', 'cmd', 'powershell', 'bash'],
+    default: 'auto'
+  },
   status: {
     type:    String,
     enum:    ['pending', 'sent', 'completed', 'failed'],

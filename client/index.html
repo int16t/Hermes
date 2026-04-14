@@ -27,6 +27,12 @@
       <h2>> INTERACT: <span id="target-name"></span></h2>
 
       <div id="command-bar">
+        <select id="shell-select">
+          <option value="auto">auto</option>
+          <option value="bash">bash</option>
+          <option value="powershell">powershell</option>
+          <option value="cmd">cmd</option>
+        </select>
         <span class="prompt">$</span>
         <input type="text" id="command-input" placeholder="whoami / ipconfig / dir C:\">
         <button id="send-btn">SEND</button>
