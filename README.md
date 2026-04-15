@@ -150,24 +150,25 @@ Endpoints protegidos exigem o header `x-api-key`.
 
 ## Conceitos de Offensive Security
 
-| Conceito         | Onde aparece no projeto                                        |
-| ---------------- | -------------------------------------------------------------- |
-| **Beaconing**    | Loop do agente com `Thread.Sleep` + jitter aleatorio           |
-| **Tasking**      | Fluxo operador -> servidor -> agente -> servidor               |
-| **OPSEC**        | Auth por API key, token por agente, `CreateNoWindow`           |
-| **Jitter**       | Intervalo variavel entre beacons dificulta deteccao por padrao |
-| **Exfiltration** | Output dos comandos enviado de volta ao servidor               |
-| **Implant**      | Agente C# compila para executavel standalone                   |
+| Conceito          | Onde aparece no projeto                                        |
+| ----------------- | -------------------------------------------------------------- |
+| **Beaconing**     | Loop do agente com `Task.Delay` + jitter aleatorio             |
+| **Tasking**       | Fluxo operador -> servidor -> agente -> servidor               |
+| **OPSEC**         | Auth por API key, token por agente, `CreateNoWindow`           |
+| **Jitter**        | Intervalo variavel entre beacons, configuravel via tasking     |
+| **Exfiltration**  | Download de arquivos do alvo em base64 para o servidor         |
+| **File Upload**   | Upload de arquivos do operador para o alvo via stdin base64    |
+| **Implant**       | Agente C# compila para executavel standalone                   |
 
 ## Roadmap
 
 - [x] WebSockets (Socket.io) para atualizar o dashboard em tempo real
 - [x] Suporte a PowerShell alem de cmd.exe
-- [ ] Upload/download de arquivos
+- [x] Upload/download de arquivos
+- [x] Jitter configuravel via tasking do servidor
 - [ ] Persistencia via Task Scheduler / Registry / Startup Folder
 - [ ] HTTPS com certificado self-signed
 - [ ] Autenticacao JWT no dashboard
-- [ ] Jitter configuravel via tasking do servidor
 
 ## Aviso Legal
 
