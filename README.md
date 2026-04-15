@@ -128,10 +128,23 @@ Antes de compilar, edite o `SERVER_URL` em `Program.cs` para apontar para o IP d
 │   ├── models/
 │   ├── routes/
 │   └── index.js
+├── outputs/               # Loot — arquivos exfiltrados dos agentes
 ├── .env.example
 ├── package.json
 └── README.md
 ```
+
+## Comandos internos do agente
+
+O agente possui comandos built-in que sao resolvidos internamente, sem criar processos no sistema alvo:
+
+| Comando | Uso | Descricao |
+| ------- | --- | --------- |
+| `cd` | `cd /tmp` | Navega entre diretorios no alvo. Suporta caminhos relativos, absolutos e `~` |
+| `pwd` | `pwd` | Retorna o diretorio atual do agente |
+| `sleep` | `sleep 10 30` | Altera o beacon: base em segundos e jitter em %. Ex: `sleep 10 30` = 7s a 13s. Padrão 5 - 50% |
+| `download` | `download /etc/passwd` | Exfiltra um arquivo do alvo para a pasta `outputs/` no servidor |
+| `upload` | `upload /tmp/payload.bin` | Envia um arquivo do operador para o alvo. O dashboard exibe um file picker automaticamente |
 
 ## Endpoints
 
