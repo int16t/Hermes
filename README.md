@@ -69,6 +69,15 @@ cp .env.example .env
 PORT=3000
 MONGODB_URI=mongodb://localhost:27017/c2dashboard
 API_KEY=troque-esta-chave
+USE_HTTPS=true
+TLS_KEY_PATH=certs/server.key
+TLS_CERT_PATH=certs/server.cert
+```
+
+4. Gere os certificados TLS (necessario para HTTPS):
+
+```bash
+bash scripts/generate-certs.sh
 ```
 
 ## Executar
@@ -118,15 +127,20 @@ Antes de compilar, edite o `SERVER_URL` em `Program.cs` para apontar para o IP d
 ├── agent-csharp/          # Agente C# (implant)
 │   ├── agent-csharp.csproj
 │   └── Program.cs
+├── certs/                 # Certificados TLS (gerados, nao commitados)
 ├── client/                # Dashboard do operador
 │   ├── css/style.css
 │   ├── js/app.js
 │   └── index.html
+├── scripts/               # Scripts auxiliares
+│   └── generate-certs.sh  # Gera certificado self-signed para HTTPS
 ├── server/                # API Express
 │   ├── config/db.js
 │   ├── middleware/auth.js
 │   ├── models/
 │   ├── routes/
+│   ├── utils/
+│   │   └── crypto.js      # ECDH key exchange + AES-256-GCM encrypt/decrypt
 │   └── index.js
 ├── outputs/               # Loot — arquivos exfiltrados dos agentes
 ├── .env.example
@@ -163,15 +177,16 @@ Endpoints protegidos exigem o header `x-api-key`.
 
 ## Conceitos de Offensive Security
 
-| Conceito          | Onde aparece no projeto                                        |
-| ----------------- | -------------------------------------------------------------- |
-| **Beaconing**     | Loop do agente com `Task.Delay` + jitter aleatorio             |
-| **Tasking**       | Fluxo operador -> servidor -> agente -> servidor               |
-| **OPSEC**         | Auth por API key, token por agente, `CreateNoWindow`           |
-| **Jitter**        | Intervalo variavel entre beacons, configuravel via tasking     |
-| **Exfiltration**  | Download de arquivos do alvo em base64 para o servidor         |
-| **File Upload**   | Upload de arquivos do operador para o alvo via stdin base64    |
-| **Implant**       | Agente C# compila para executavel standalone                   |
+| Conceito            | Onde aparece no projeto                                             |
+| ------------------- | ------------------------------------------------------------------- |
+| **Beaconing**       | Loop do agente com `Task.Delay` + jitter aleatorio                  |
+| **Tasking**         | Fluxo operador -> servidor -> agente -> servidor                    |
+| **OPSEC**           | Auth por API key, token por agente, `CreateNoWindow`                |
+| **Jitter**          | Intervalo variavel entre beacons, configuravel via tasking          |
+| **Exfiltration**    | Download de arquivos do alvo em base64 para o servidor              |
+| **File Upload**     | Upload de arquivos do operador para o alvo via stdin base64         |
+| **Implant**         | Agente C# compila para executavel standalone                        |
+| **Encrypted Comms** | HTTPS transport + AES-256-GCM payload com ECDH key exchange (T1573) |
 
 ## Roadmap
 
@@ -179,8 +194,9 @@ Endpoints protegidos exigem o header `x-api-key`.
 - [x] Suporte a PowerShell alem de cmd.exe
 - [x] Upload/download de arquivos
 - [x] Jitter configuravel via tasking do servidor
+- [x] HTTPS com certificado self-signed
+- [x] Comunicacao criptografada (AES-256-GCM + ECDH key exchange)
 - [ ] Persistencia via Task Scheduler / Registry / Startup Folder
-- [ ] HTTPS com certificado self-signed
 - [ ] Autenticacao JWT no dashboard
 
 ## Aviso Legal
