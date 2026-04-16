@@ -4,7 +4,7 @@ const Task    = require('../models/Task');
 const auth    = require('../middleware/auth');
 const agentAuth = require('../middleware/agentAuth');
 const fs = require('fs');
-const { encrypt } = require('../utils/crypto');
+const { encrypt, decrypt } = require('../utils/crypto');
 
 
 
@@ -55,13 +55,18 @@ router.get('/agent/:agentId', agentAuth, async (req, res) => {
 });
 
 
-// PUT /api/tasks/:id/result — agente C# devolve resultado (sem auth)
 router.put('/:id/result', agentAuth, async (req, res) => {
   try {
+    let output;
+    if (req.body.encrypted && req.agent.sessionKey) {
+      output = decrypt(req.body.encrypted, req.agent.sessionKey);
+    } else {
+      output = req.body.output;
+    }
+
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Tarefa não encontrada' });
 
-    const output = req.body.output;
     if (output.startsWith('b64:')) {
       const parts = output.split(':');
       const fileName = parts[1];
@@ -86,7 +91,6 @@ router.put('/:id/result', agentAuth, async (req, res) => {
   }
 });
 
-// GET /api/tasks/history/:agentId — histórico completo (protegido)
 router.get('/history/:agentId', auth, async (req, res) => {
   try {
     const tasks = await Task.find({ agentId: req.params.agentId })

