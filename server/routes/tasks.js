@@ -4,6 +4,7 @@ const Task    = require('../models/Task');
 const auth    = require('../middleware/auth');
 const agentAuth = require('../middleware/agentAuth');
 const fs = require('fs');
+const { encrypt } = require('../utils/crypto');
 
 
 
@@ -33,11 +34,26 @@ router.get('/agent/:agentId', agentAuth, async (req, res) => {
       await task.save();
     }
 
+    const sessionKey = req.agent.sessionKey;
+
+    if (sessionKey) {
+      const encrypted = tasks.map(task => ({
+        _id:       task._id,
+        encrypted: encrypt(JSON.stringify({
+        command: task.command,
+        stdin:   task.stdin,
+        shell:   task.shell
+        }), sessionKey)
+      }));
+      return res.json(encrypted);
+    }
+
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // PUT /api/tasks/:id/result — agente C# devolve resultado (sem auth)
 router.put('/:id/result', agentAuth, async (req, res) => {

@@ -64,6 +64,7 @@ temp/
 
 # random
 c2.md
+certs/
 
 # Local tooling
 .qodo/

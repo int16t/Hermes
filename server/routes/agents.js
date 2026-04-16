@@ -2,6 +2,8 @@ const express = require('express');
 const router  = express.Router();
 const Agent   = require('../models/Agent');
 const auth    = require('../middleware/auth');
+const { generateECDHKeyPair, deriveSessionKey } = require('../utils/crypto');
+
 
 module.exports = function(io) {
 
@@ -21,15 +23,33 @@ router.post('/register', async (req, res) => {
       if (!agent.token) {
         agent.token = require('crypto').randomUUID();
       }
+
+      let serverPublicKey = '';
+      if (req.body.publicKey) {
+        const serverKeys = generateECDHKeyPair();
+        agent.sessionKey = deriveSessionKey(serverKeys.privateKey, req.body.publicKey);
+        serverPublicKey = serverKeys.publicKey;
+      }
+
       await agent.save();
-      return res.json({ message: 'Check-in atualizado', agent });
+      return res.json({ message: 'Check-in atualizado', agent, serverPublicKey});
     }
 
     token = require('crypto').randomUUID();
-    agent = new Agent({ hostname, username, os, ip, arch, pid, token, cwd });
+
+    let sessionKey = '';
+    let serverPublicKey = '';
+
+    if (req.body.publicKey) {
+      const serverKeys = generateECDHKeyPair();
+      sessionKey = deriveSessionKey(serverKeys.privateKey, req.body.publicKey);
+      serverPublicKey = serverKeys.publicKey;
+    }
+    
+    agent = new Agent({ hostname, username, os, ip, arch, pid, token, cwd, sessionKey });
     await agent.save();
     io.emit('agent-checkin', agent);
-    res.status(201).json({ message: 'Agente registrado', agent });
+    res.status(201).json({ message: 'Agente registrado', agent, serverPublicKey });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
