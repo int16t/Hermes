@@ -72,6 +72,7 @@ API_KEY=troque-esta-chave
 USE_HTTPS=true
 TLS_KEY_PATH=certs/server.key
 TLS_CERT_PATH=certs/server.cert
+AGENT_SECRET=troque-esta-chave-secreta
 ```
 
 4. Gere os certificados TLS (necessario para HTTPS):
@@ -177,16 +178,17 @@ Endpoints protegidos exigem o header `x-api-key`.
 
 ## Conceitos de Offensive Security
 
-| Conceito            | Onde aparece no projeto                                             |
-| ------------------- | ------------------------------------------------------------------- |
-| **Beaconing**       | Loop do agente com `Task.Delay` + jitter aleatorio                  |
-| **Tasking**         | Fluxo operador -> servidor -> agente -> servidor                    |
-| **OPSEC**           | Auth por API key, token por agente, `CreateNoWindow`                |
-| **Jitter**          | Intervalo variavel entre beacons, configuravel via tasking          |
-| **Exfiltration**    | Download de arquivos do alvo em base64 para o servidor              |
-| **File Upload**     | Upload de arquivos do operador para o alvo via stdin base64         |
-| **Implant**         | Agente C# compila para executavel standalone                        |
-| **Encrypted Comms** | HTTPS transport + AES-256-GCM payload com ECDH key exchange (T1573) |
+| Conceito            | Onde aparece no projeto                                                |
+| ------------------- | ---------------------------------------------------------------------- |
+| **Beaconing**       | Loop do agente com `Task.Delay` + jitter aleatorio                     |
+| **Tasking**         | Fluxo operador -> servidor -> agente -> servidor                       |
+| **OPSEC**           | Auth por API key, token por agente, `CreateNoWindow`                   |
+| **Jitter**          | Intervalo variavel entre beacons, configuravel via tasking             |
+| **Exfiltration**    | Download de arquivos do alvo em base64 para o servidor                 |
+| **File Upload**     | Upload de arquivos do operador para o alvo via stdin base64            |
+| **Implant**         | Agente C# compila para executavel standalone                           |
+| **Encrypted Comms** | HTTPS transport + AES-256-GCM payload com ECDH key exchange (T1573)    |
+| **Agent Auth**      | Pre-shared secret no registro + token rotation a cada check-in (T1078) |
 
 ## Roadmap
 
@@ -196,6 +198,7 @@ Endpoints protegidos exigem o header `x-api-key`.
 - [x] Jitter configuravel via tasking do servidor
 - [x] HTTPS com certificado self-signed
 - [x] Comunicacao criptografada (AES-256-GCM + ECDH key exchange)
+- [x] Agent Auth (pre-shared secret + token rotation)
 - [ ] Persistencia via Task Scheduler / Registry / Startup Folder
 - [ ] Autenticacao JWT no dashboard
 
