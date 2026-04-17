@@ -183,10 +183,10 @@ Endpoints protegidos exigem o header `x-api-key`.
 | **Beaconing**       | Loop do agente com `Task.Delay` + jitter aleatorio                     |
 | **Tasking**         | Fluxo operador -> servidor -> agente -> servidor                       |
 | **OPSEC**           | Auth por API key, token por agente, `CreateNoWindow`                   |
-| **Jitter**          | Intervalo variavel entre beacons, configuravel via tasking             |
+| **Jitter**          | Intervalo variável entre beacons, configuravel via tasking             |
 | **Exfiltration**    | Download de arquivos do alvo em base64 para o servidor                 |
 | **File Upload**     | Upload de arquivos do operador para o alvo via stdin base64            |
-| **Implant**         | Agente C# compila para executavel standalone                           |
+| **Implant**         | Agente C# compila para executável standalone                           |
 | **Encrypted Comms** | HTTPS transport + AES-256-GCM payload com ECDH key exchange (T1573)    |
 | **Agent Auth**      | Pre-shared secret no registro + token rotation a cada check-in (T1078) |
 
